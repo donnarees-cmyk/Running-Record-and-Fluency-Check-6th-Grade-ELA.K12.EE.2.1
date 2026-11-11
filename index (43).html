@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fluency Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&family=Lexend:wght@400;500&display=swap">
+<style>
+/* Layout: one centered "keyring card" per step; passage screen goes wide for easy tracking. */
+:root{
+  --navy:#1d2b5c; --navy-soft:#33457f; --gold:#d6a21e; --gold-soft:#fbefc9;
+  --sky:#eaf1ff; --page:#f5f7fd; --card:#ffffff; --ink:#1f2540; --muted:#5c6488;
+  --ok:#1f9d63; --ok-soft:#dcf5e8; --miss:#d6452f; --miss-soft:#fde3de; --line:#d9dff0;
+  --f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Nunito","Segoe UI",system-ui,sans-serif;
+  --f-read:"Lexend","Verdana",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.noaudio .listen{display:none!important}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:18px;line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+.wrap.wide{max-width:980px}
+header.brand{display:flex;align-items:center;justify-content:center}
+header.brand img{max-height:120px;width:auto;max-width:100%}
+.card{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:26px;display:flex;flex-direction:column;gap:16px;box-shadow:0 6px 0 var(--line)}
+h1,h2{font-family:var(--f-display);color:var(--navy);margin:0;line-height:1.15;text-wrap:balance}
+h1{font-size:2rem} h2{font-size:1.5rem}
+p{margin:0}
+.muted{color:var(--muted)}
+.steps{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.steps span{width:34px;height:8px;border-radius:8px;background:var(--line)}
+.steps span.on{background:var(--gold)}
+.steps span.done{background:var(--navy-soft)}
+label{font-weight:800;color:var(--navy)}
+input[type=text],select{font:inherit;font-size:1.1rem;padding:14px 16px;border:2px solid var(--line);border-radius:14px;width:100%;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{font-family:var(--f-display);font-weight:600;font-size:1.25rem;border:0;border-radius:16px;padding:16px 26px;cursor:pointer;background:var(--navy);color:#fff;box-shadow:0 5px 0 #0e1738;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #0e1738}
+.btn.gold{background:var(--gold);color:var(--navy);box-shadow:0 5px 0 #a87b0c}
+.btn.ghost{background:var(--sky);color:var(--navy);box-shadow:0 5px 0 var(--line)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.big{font-size:1.5rem;padding:20px 34px;align-self:center}
+.listen{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:600;font-size:1rem;border:2px solid var(--gold);background:var(--gold-soft);color:var(--navy);border-radius:999px;padding:8px 16px;cursor:pointer;align-self:flex-start}
+.listen svg{width:20px;height:20px}
+.tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tip{background:var(--sky);border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.tip b{font-size:1.6rem;line-height:1}
+.meter{height:22px;border-radius:12px;background:var(--sky);overflow:hidden;border:2px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ok),var(--gold));transition:width .08s}
+.heard{min-height:52px;background:var(--page);border:2px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:1.1rem}
+.status{font-weight:800}
+.status.good{color:var(--ok)} .status.bad{color:var(--miss)}
+/* reading */
+.timerbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--page);padding-block:10px;display:flex;align-items:center;gap:14px}
+.timerbar .track{flex:1;height:16px;background:var(--line);border-radius:10px;overflow:hidden}
+.timerbar .track i{display:block;height:100%;width:100%;background:var(--gold);transform-origin:left;transition:transform .2s linear}
+.timerbar .secs{font-family:var(--f-display);font-weight:700;font-size:1.6rem;color:var(--navy);min-width:3.2ch;text-align:right;font-variant-numeric:tabular-nums}
+.recdot{width:14px;height:14px;border-radius:50%;background:var(--miss);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.passage{font-family:var(--f-read);font-size:1.45rem;line-height:2.05;color:var(--ink);background:#fff;border:2px solid var(--line);border-radius:22px;padding:28px 30px}
+.passage h2{font-family:var(--f-read);font-weight:500;margin-bottom:12px;font-size:1.6rem}
+.passage p{margin:0 0 .9em}
+.w{border-radius:6px;padding:0 1px;transition:background .25s}
+.w.ok{background:var(--ok-soft)}
+.w.next{box-shadow:inset 0 -3px 0 var(--gold)}
+.passage.tapmode .w{cursor:pointer}
+.passage.tapmode .w:hover{background:var(--gold-soft)}
+.w.last{background:var(--gold);color:var(--navy)}
+.hidden-text{filter:blur(9px);user-select:none;pointer-events:none}
+.count{font-family:var(--f-display);font-size:6rem;color:var(--gold);text-align:center;font-weight:700}
+/* questions */
+.qnum{font-family:var(--f-display);color:var(--gold);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:.95rem}
+.opts{display:grid;gap:12px}
+.opt{display:flex;gap:14px;align-items:center;text-align:left;font:inherit;font-size:1.15rem;padding:16px 18px;background:#fff;border:2px solid var(--line);border-radius:16px;cursor:pointer;color:var(--ink)}
+.opt .let{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--sky);color:var(--navy);font-family:var(--f-display);font-weight:700}
+.opt.sel{border-color:var(--navy);background:var(--sky)}
+.opt.sel .let{background:var(--navy);color:#fff}
+/* results */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--sky);border-radius:18px;padding:16px;text-align:center}
+.stat .n{font-family:var(--f-display);font-weight:700;font-size:2.4rem;color:var(--navy);font-variant-numeric:tabular-nums}
+.stat .l{font-weight:700;color:var(--muted);font-size:.95rem}
+.sent{display:flex;gap:10px;align-items:center;padding:12px 16px;border-radius:14px;font-weight:800}
+.sent.ok{background:var(--ok-soft);color:#13704a}
+.sent.wait{background:var(--gold-soft);color:#7a5a07}
+.sent.bad{background:var(--miss-soft);color:#9b2a19}
+ol.howto{margin:0;padding-left:1.4em;display:grid;gap:6px}
+audio{width:100%}
+.teacher{align-self:center;background:none;border:0;color:var(--muted);font:inherit;font-size:.85rem;text-decoration:underline;cursor:pointer}
+footer{text-align:center;color:var(--muted);font-size:.8rem}
+textarea{font:inherit;font-size:1rem;width:100%;min-height:90px;padding:12px;border:2px solid var(--line);border-radius:14px}
+code{background:var(--sky);padding:2px 6px;border-radius:6px;font-size:.9em;word-break:break-all}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+@media (max-width:600px){.passage{font-size:1.2rem;padding:20px}.card{padding:20px}h1{font-size:1.6rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="wrap" id="app"></div>
+<audio id="voice" preload="none"></audio>
+
+<script>
+// Fluency Check passages — original grade 6 texts by REES Educational Innovations.
+// Season: A = Fall, B = Winter, C = Spring. Each question: one correct answer (index in "a").
+window.PASSAGES = {
+  A: {
+    title: "The Night the Power Went Out",
+    season: "fall",
+    text: `When the storm knocked out the power, Maya was halfway through her science project. The lamp above her desk flickered twice and then went dark. Outside, the wind pushed against the windows, and rain drummed on the roof like a hundred tiny fists.
+
+"Don't panic," her grandfather called from the kitchen. "I know exactly where the flashlights are."
+
+He did not know exactly where the flashlights were. After ten minutes of searching, they found one flashlight with weak batteries and a box of birthday candles. Maya groaned. Her project was due on Monday, and she still had to finish the poster.
+
+Her grandfather lit three candles and set them on a plate in the middle of the table. The small flames made the room glow orange. Shadows stretched across the walls and wiggled every time someone moved.
+
+"When I was your age," he said, "we lost power almost every summer. My brothers and I used to tell stories until we fell asleep."
+
+"What kind of stories?" Maya asked.
+
+"Mostly the kind where someone gets lost in the woods," he said with a grin.
+
+Maya rolled her eyes, but she pulled her chair closer. Her grandfather told her about the time he and his brothers built a raft that sank in less than a minute. He told her about a dog named Pepper who stole an entire pie from a neighbor's porch. Maya laughed so hard that one of the candles almost went out.
+
+By the time the lights flickered back on, it was almost midnight. Maya looked at her unfinished poster and realized she had not thought about it once. She decided the project could wait until morning. Some things, she thought, were more important than a perfect grade.`,
+    questions: [
+      { q: "Why does Maya stop worrying about her science project?",
+        o: ["Her grandfather offers to finish the poster for her.", "The power comes back on right away.", "She enjoys listening to her grandfather's stories.", "Her teacher gives her more time to finish."], a: 2 },
+      { q: "The story says, \"He did not know exactly where the flashlights were.\" What does this sentence show?",
+        o: ["The grandfather was more sure of himself than he should have been.", "The grandfather hid the flashlights on purpose.", "All of the flashlights in the house were broken.", "Maya had taken the flashlights to her room."], a: 0 },
+      { q: "The author writes that rain \"drummed on the roof like a hundred tiny fists.\" What does this help the reader understand?",
+        o: ["The rain was soft and quiet.", "The rain was loud and strong.", "The storm was almost over.", "Someone was knocking on the door."], a: 1 },
+      { q: "Which sentence best states the theme of the story?",
+        o: ["Always keep extra batteries in the house.", "Science projects should be finished early.", "Storms are dangerous and scary.", "Time spent with family can matter more than being perfect."], a: 3 }
+    ]
+  },
+  B: {
+    title: "How Honeybees Share Directions",
+    season: "winter",
+    text: `A honeybee that finds a field of flowers has a problem. The flowers are full of sweet nectar, but the bee cannot carry all of it home by herself. She needs help from the other bees in her hive. The trouble is that bees cannot talk, and the field might be far away. So how does one small insect tell thousands of others where to go?
+
+The answer is a dance. When the bee returns to the hive, she moves across the honeycomb in a special pattern. Scientists call it the waggle dance. The bee walks forward in a straight line while shaking her body from side to side. Then she circles back to where she started and does it again.
+
+Every part of the dance carries information. The direction of the straight line points the way to the flowers, using the sun as a guide. If the bee dances straight up the honeycomb, the flowers are in the same direction as the sun. If she dances to the left or right, the other bees know to fly at that angle away from the sun.
+
+The length of the waggle tells how far away the food is. A short waggle means the flowers are close to the hive. A long waggle means the bees will need to travel much farther.
+
+The other bees gather around the dancer and follow her movements closely. They also smell the flowers on her body, which helps them find the right place. Within minutes, dozens of bees may leave the hive and head straight to the field.
+
+For many years, people did not believe that insects could share such detailed messages. Today, scientists know that the honeybee dance is one of the most amazing ways animals communicate in the natural world.`,
+    questions: [
+      { q: "What is the main idea of the passage?",
+        o: ["Honeybees use a dance to tell other bees where to find food.", "Honeybees can only find flowers that are close to the hive.", "Scientists have taught honeybees how to dance.", "Honeybees make honey from many kinds of flowers."], a: 0 },
+      { q: "What does a long waggle tell the other bees?",
+        o: ["The flowers are in the same direction as the sun.", "The flowers are far away from the hive.", "The flowers are almost out of nectar.", "The hive is in danger."], a: 1 },
+      { q: "Besides watching the dance, how do the other bees find the right flowers?",
+        o: ["They follow the sound of the dancer's wings.", "They wait for the dancer to lead them there.", "They smell the flowers on the dancer's body.", "They search every field near the hive."], a: 2 },
+      { q: "Why does the author include the last paragraph?",
+        o: ["To explain how to build a beehive", "To give steps for doing the waggle dance", "To argue that bees are better than other animals", "To show how surprising and impressive bee communication is"], a: 3 }
+    ]
+  },
+  C: {
+    title: "The Garden on the Roof",
+    season: "spring",
+    text: `Nobody at Lincoln Middle School had ever paid much attention to the roof. It was flat, gray, and covered with old gravel. The only visitors were pigeons and the man who checked the air conditioners twice a year.
+
+That changed when Ms. Alvarez, the science teacher, asked her class a question. "What if we used that empty space to grow food?"
+
+At first, the students thought she was joking. Then she showed them pictures of rooftop gardens in big cities around the world. Some of them had tomatoes, peppers, and even small fruit trees. The class voted to try it.
+
+The work was harder than anyone expected. The principal had to make sure the roof was strong enough to hold the weight of the soil. The students wrote letters to local businesses asking for donations. A hardware store gave them lumber for raised beds, and a farmer from the next town brought bags of rich, dark soil.
+
+Every morning before school, a team of students climbed the stairs to water the plants. Some days were so hot that the leaves drooped by noon. Other days, heavy rain flooded the beds, and the students had to dig small ditches to drain the water away. More than once, they wanted to give up.
+
+By the end of spring, however, the roof looked completely different. Bright green vines climbed up wooden poles. Fat red tomatoes hung from the branches, and bees buzzed from flower to flower. The cafeteria even served a salad made with lettuce the students had grown themselves.
+
+Ms. Alvarez said the garden taught her students more than any textbook could. They learned about soil and sunlight, but they also learned about patience. As one student put it, "You can't rush a tomato."`,
+    questions: [
+      { q: "Why did the principal need to check the roof before the garden was built?",
+        o: ["To see if pigeons were living there", "To make sure it could hold the weight of the soil", "To fix the air conditioners", "To measure how much sun it got"], a: 1 },
+      { q: "Which detail shows that the students faced challenges?",
+        o: ["Heavy rain flooded the beds.", "The class voted to try it.", "Bees buzzed from flower to flower.", "The cafeteria served a salad."], a: 0 },
+      { q: "What does the student mean by \"You can't rush a tomato\"?",
+        o: ["Tomatoes are hard to pick.", "Tomatoes should be eaten slowly.", "Good things take time and patience.", "Tomatoes grow best in cities."], a: 2 },
+      { q: "How did people outside the school help the garden?",
+        o: ["They watered the plants every morning.", "They voted to build the garden.", "They taught the science class.", "They donated lumber and soil."], a: 3 }
+    ]
+  }
+};
+
+</script>
+<script>
+// Fluency scoring: lines up what the iPad heard with the passage words.
+(function (root) {
+  const HOMO = [
+    ["there", "their", "theyre"], ["to", "too", "two"], ["its", "it's"], ["no", "know"],
+    ["right", "write"], ["here", "hear"], ["for", "four", "fore"], ["by", "buy", "bye"],
+    ["one", "won", "1"], ["new", "knew"], ["sea", "see"], ["whole", "hole"],
+    ["weather", "whether"], ["ms", "miss", "mrs", "mz", "miz"], ["dont", "do"],
+    ["three", "3"], ["ten", "10"], ["through", "threw"], ["way", "weigh"], ["weight", "wait"],
+    ["flower", "flour"], ["red", "read"], ["sun", "son"], ["sail", "sale"], ["tail", "tale"],
+    ["wood", "would"], ["woods", "would"], ["our", "hour"], ["be", "bee"], ["bees", "bs"],
+    ["waggle", "wiggle", "wagon"], ["maya", "mya", "mia", "maia", "myah"], ["pepper", "peppa"],
+    ["alvarez", "alvarado", "alvares"], ["cant", "can"]
+  ];
+  const HMAP = {};
+  HOMO.forEach(g => g.forEach(w => { HMAP[w] = HMAP[w] || new Set(); g.forEach(x => HMAP[w].add(x)); }));
+
+  function norm(w) {
+    return String(w).toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]/g, "");
+  }
+  function tokens(text) {
+    return String(text).split(/[\s—–-]+/).map(norm).filter(Boolean);
+  }
+  function lev(a, b, full) {
+    if (!full && Math.abs(a.length - b.length) > 2) return 9;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  // 1 = exact (or sound-alike), 2 = close (ending or one letter off: counted right, flagged to check)
+  function same(p, r) {
+    if (!p || !r) return 0;
+    if (p === r) return 1;
+    if (HMAP[p] && HMAP[p].has(r)) return 1;
+    const strip = s => s.replace(/(es|s|ed|d)$/, "");
+    if (p.length > 3 && strip(p) === strip(r)) return 2;
+    if (p.length >= 5 && lev(p, r) <= 1) return 2;
+    if (p.length >= 8 && lev(p, r) <= 2) return 2;
+    return 0;
+  }
+  // looks like the word (visual cue): same first letter and/or many shared letters
+  function looksLike(p, r) {
+    if (!p || !r) return false;
+    if (r.length >= 2 && (p.startsWith(r) || p.endsWith(r) || r.startsWith(p))) return true;
+    const d = lev(p, r, true), L = Math.max(p.length, r.length);
+    if (p[0] === r[0] && d <= Math.ceil(L / 2)) return true;
+    return d <= Math.floor(L / 3);
+  }
+  const CLOSED = [
+    ["a", "an", "the", "this", "that", "these", "those", "his", "her", "their", "my", "your", "our", "its", "some", "every", "each", "any"],
+    ["he", "she", "it", "they", "we", "i", "you", "him", "them", "us", "me"],
+    ["in", "on", "at", "of", "to", "from", "with", "into", "onto", "across", "above", "around", "through", "by", "for", "under", "over", "against", "about", "until"],
+    ["and", "but", "or", "so", "because", "when", "while", "if", "then"],
+    ["is", "was", "are", "were", "be", "been", "had", "has", "have", "did", "do", "does", "could", "would", "should", "can", "will"]
+  ];
+  const ending = w => (w.match(/(ing|ed|ly|s)$/) || [""])[0];
+  // sounds right in the sentence (structure cue) — rough guess from word type
+  function sameStructure(p, r) {
+    const gp = CLOSED.findIndex(g => g.includes(p)), gr = CLOSED.findIndex(g => g.includes(r));
+    if (gp >= 0 || gr >= 0) return gp === gr;
+    return ending(p) === ending(r);
+  }
+
+  // passageWords: normalized passage tokens. heard: normalized heard tokens.
+  // status per passage word: ok | check | sc | sub | miss | null (not reached)
+  // said[i]: what the reader said for sub / sc / check words. ins: [{after, word}]
+  function align(passageWords, heard) {
+    const P = passageWords, R = heard;
+    const status = new Array(P.length).fill(null), said = {}, ins = [];
+    let i = 0, j = 0, pend = [];
+    const NEAR = 5, FAR = 30;
+    const take = (k, used, how, heardAs) => {
+      const skipped = [];
+      for (let m = i; m < k; m++) if (status[m] === null) skipped.push(m);
+      let U = pend.filter(u => !(u === P[k] || (k > 0 && u === P[k - 1]) || (k > 1 && u === P[k - 2]))); // repeats aren't errors
+      // self-correction: tried something that looks like the word, then said it right
+      let sc = false;
+      if (U.length && !skipped.length && looksLike(P[k], U[U.length - 1])) { said[k] = U.pop(); sc = true; }
+      const n = Math.min(U.length, skipped.length);
+      for (let x = 0; x < n; x++) { status[skipped[x]] = "sub"; said[skipped[x]] = U[x]; }
+      for (let x = n; x < skipped.length; x++) status[skipped[x]] = "miss";
+      for (let x = n; x < U.length; x++) ins.push({ after: k - 1, word: U[x] });
+      status[k] = sc ? "sc" : how === 2 ? "check" : "ok";
+      if (how === 2 && !sc) said[k] = heardAs;
+      i = k + 1; j += used; pend = [];
+    };
+    while (j < R.length && i < P.length) {
+      const r = R[j], r2 = R[j + 1];
+      let found = -1, used = 1, how = 0;
+      for (let k = i; k < Math.min(P.length, i + NEAR); k++) {
+        if ((how = same(P[k], r))) { found = k; break; }
+        if (r2 && (how = same(P[k], r + r2))) { found = k; used = 2; break; }
+        if (P[k + 1] && (how = same(P[k] + P[k + 1], r))) { status[k] = "ok"; found = k + 1; break; }
+      }
+      if (found < 0 && r2) {
+        for (let k = i + NEAR; k < Math.min(P.length - 1, i + FAR); k++) {
+          if ((how = same(P[k], r)) && same(P[k + 1], r2)) { found = k; break; }
+        }
+      }
+      if (found >= 0) take(found, used, how, r); else { pend.push(r); j++; }
+    }
+    let correct = 0;
+    for (let m = 0; m < i; m++) if (status[m] === "ok" || status[m] === "check" || status[m] === "sc") correct++;
+    return { status, said, ins, pos: i, correct, attempted: i };
+  }
+
+  // Running record math (Reading A-Z conventions)
+  function rrLevel(acc) { return acc >= 95 ? "Independent" : acc >= 90 ? "Instructional" : "Frustration"; }
+  function scRate(errors, sc) { return sc ? "1:" + Math.round((errors + sc) / sc) : "no self-corrections"; }
+
+  const NORMS = { // Hasbrouck & Tindal (2017), grade 6: p10, p25, p50, p75, p90
+    fall: [89, 112, 132, 159, 185],
+    winter: [91, 116, 145, 166, 195],
+    spring: [91, 122, 146, 173, 204]
+  };
+  function seasonFor(date) {
+    const m = date.getMonth(); // 0 = Jan
+    if (m >= 7 && m <= 10) return "fall";      // Aug–Nov
+    if (m === 11 || m <= 1) return "winter";   // Dec–Feb
+    return "spring";                           // Mar–Jul
+  }
+  function level(wcpm, season) {
+    const n = NORMS[season];
+    if (wcpm >= n[3]) return "Above grade level (75th+)";
+    if (wcpm >= n[2]) return "On grade level (50th-74th)";
+    if (wcpm >= n[1]) return "Monitor (25th-49th)";
+    if (wcpm >= n[0]) return "Support (10th-24th)";
+    return "Intervention (below 10th)";
+  }
+
+  const api = { norm, tokens, same, looksLike, sameStructure, align, rrLevel, scRate, NORMS, seasonFor, level };
+  if (typeof module !== "undefined") module.exports = api; else root.Fluency = api;
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+(() => {
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const app = $("#app");
+const KEY = "llFluencyCheck.v1";
+const DEFAULT_RESET = "LOCKSMITH";
+const ICON_SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+
+/* ---------- config from link (?c=...) ---------- */
+const params = new URLSearchParams(location.search);
+let CFG = {};
+try { if (params.get("c")) CFG = JSON.parse(decodeURIComponent(escape(atob(params.get("c").replace(/-/g,"+").replace(/_/g,"/"))))); } catch (e) { CFG = {}; }
+const SEASON_TO_FORM = { fall: "A", winter: "B", spring: "C" };
+const today = new Date();
+const season = Fluency.seasonFor(today);
+const formLetter = (CFG.p && CFG.p !== "auto" && PASSAGES[CFG.p]) ? CFG.p : SEASON_TO_FORM[season];
+const normSeason = PASSAGES[formLetter].season === season ? season : season; // norms always follow today's date
+const P = PASSAGES[formLetter];
+const PWORDS = Fluency.tokens(P.text);
+
+/* ---------- saved state (autosave on this iPad) ---------- */
+const blank = () => ({ stage: "welcome", name: "", period: "", form: formLetter, restarts: 0, heard: "", mode: "", tapIndex: -1,
+  result: null, answers: [], q: 0, sent: false, startedAt: null, finishedAt: null, micOk: false });
+let S = load();
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(KEY + "." + formLetter)); if (s) return Object.assign(blank(), s); } catch (e) {}
+  return blank();
+}
+function save() { try { localStorage.setItem(KEY + "." + formLetter, JSON.stringify(S)); } catch (e) {} }
+
+/* recording kept in IndexedDB so it survives leaving the page */
+const idb = {
+  open() { return new Promise((res, rej) => { try { const r = indexedDB.open("llFluency", 1); r.onupgradeneeded = () => r.result.createObjectStore("rec"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
+  async put(k, v) { try { const db = await this.open(); await new Promise(r => { const t = db.transaction("rec", "readwrite"); t.objectStore("rec").put(v, k); t.oncomplete = r; t.onerror = r; }); } catch (e) {} },
+  async get(k) { try { const db = await this.open(); return await new Promise(r => { const q = db.transaction("rec").objectStore("rec").get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); }); } catch (e) { return null; } },
+  async clear() { try { const db = await this.open(); await new Promise(r => { const t = db.transaction("rec", "readwrite"); t.objectStore("rec").clear(); t.oncomplete = r; t.onerror = r; }); } catch (e) {} }
+};
+
+/* ---------- read-aloud (pre-made audio, Heart voice) ---------- */
+const voice = $("#voice");
+fetch("audio/welcome.mp3", { method: "HEAD" }).then(r => { if (!r.ok) document.body.classList.add("noaudio"); }).catch(() => document.body.classList.add("noaudio"));
+function play(name) {
+  try { voice.pause(); voice.src = "audio/" + name + ".mp3"; voice.currentTime = 0; voice.play().catch(() => {}); } catch (e) {}
+}
+function stopVoice() { try { voice.pause(); } catch (e) {} }
+function listenBtn(name, label = "Listen") { return `<button class="listen" data-say="${name}" type="button">${ICON_SPK}<span>${label}</span></button>`; }
+app.addEventListener("click", e => { const b = e.target.closest("[data-say]"); if (b) play(b.dataset.say); });
+
+/* ---------- shared bits ---------- */
+const STAGES = ["welcome", "mic", "ready", "reading", "silent", "questions", "results"];
+function shell(inner, wide) {
+  const idx = STAGES.indexOf(S.stage === "tap" ? "reading" : S.stage);
+  const dots = STAGES.map((s, i) => `<span class="${i < idx ? "done" : i === idx ? "on" : ""}"></span>`).join("");
+  app.className = "wrap" + (wide ? " wide" : "");
+  app.innerHTML = `<header class="brand"><img src="logo.png" alt="The Literacy Locksmith" onerror="this.parentNode.hidden=true"></header>
+  <div class="steps" aria-hidden="true">${dots}</div>${inner}
+  <footer>The Literacy Locksmith &middot; created and copyrighted by Donna Rees</footer>`;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function go(stage) { stopVoice(); S.stage = stage; save(); render(); window.scrollTo(0, 0); }
+
+/* passage markup with one span per scored word */
+function passageHTML(extraClass = "") {
+  let n = 0;
+  const paras = P.text.split(/\n\s*\n/).map(par => {
+    const parts = par.split(/(\s+|—|–)/);
+    return "<p>" + parts.map(tok => {
+      if (!tok || /^\s+$/.test(tok) || tok === "—" || tok === "–") return esc(tok);
+      // a hyphenated chunk can hold more than one scored word
+      return tok.split(/(-)/).map(sub => {
+        if (sub === "-" || !Fluency.norm(sub)) return esc(sub);
+        return `<span class="w" data-i="${n++}">${esc(sub)}</span>`;
+      }).join("");
+    }).join("") + "</p>";
+  }).join("");
+  return `<div class="passage ${extraClass}" id="passage"><h2>${esc(P.title)}</h2>${paras}</div>`;
+}
+
+/* ---------- microphone ---------- */
+let stream = null, actx = null, meterRAF = 0;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+async function getMic() {
+  if (stream && stream.active) return stream;
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  return stream;
+}
+function runMeter(el) {
+  cancelAnimationFrame(meterRAF);
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    actx.resume && actx.resume();
+    const src = actx.createMediaStreamSource(stream), an = actx.createAnalyser();
+    an.fftSize = 512; src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const tick = () => {
+      an.getByteTimeDomainData(buf);
+      let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+      if (el && el.isConnected) { el.style.width = Math.min(100, peak * 1.6) + "%"; meterRAF = requestAnimationFrame(tick); }
+    };
+    tick();
+  } catch (e) {}
+}
+
+/* =============== SCREENS =============== */
+function render() {
+  if (S.stage === "reading" || S.stage === "tap") { // left in the middle of the timed read
+    if (S.stage === "reading") { S.restarts++; S.heard = ""; S.stage = "ready"; save(); }
+  }
+  ({ welcome, mic, ready, tap: tapScreen, silent, questions, results })[S.stage]();
+}
+
+function welcome() {
+  const periods = [1, 2, 3, 4, 5, 6, 7, 8].map(p => `<option ${S.period == p ? "selected" : ""}>${p}</option>`).join("");
+  shell(`<section class="card">
+    <h1>Reading Fluency Check</h1>
+    <p class="muted">You will read a story out loud for 1 minute, finish it, and answer 4 questions. It takes about 10 minutes.</p>
+    ${listenBtn("welcome")}
+    <div class="field"><label for="nm">Your first name and last initial</label>
+      <input type="text" id="nm" autocomplete="off" placeholder="Example: Jordan M." value="${esc(S.name)}"></div>
+    <div class="field"><label for="per">Class period</label>
+      <select id="per"><option value="">Choose your period</option>${periods}</select></div>
+    <button class="btn gold big" id="goBtn" type="button">Let's go</button>
+  </section>`);
+  const nm = $("#nm"), per = $("#per"), b = $("#goBtn");
+  const check = () => { b.disabled = !(nm.value.trim().length > 1 && per.value); };
+  nm.oninput = () => { S.name = nm.value.trim(); save(); check(); };
+  per.onchange = () => { S.period = per.value; save(); check(); };
+  check();
+  b.onclick = () => go("mic");
+}
+
+function mic() {
+  const hasSR = !!SR;
+  shell(`<section class="card">
+    <h2>Step 1: Check your microphone</h2>
+    ${listenBtn(hasSR ? "mic" : "mic_tap")}
+    <div class="tips">
+      <div class="tip"><b>🤫</b><span>Find a quiet spot. Face the wall if you can.</span></div>
+      <div class="tip"><b>📱</b><span>Hold the iPad about one arm's length away.</span></div>
+    </div>
+    <p>${hasSR ? 'Tap <b>Start mic check</b>. Then say: <b>"I am ready to read."</b>' : 'Tap <b>Start mic check</b> and say: <b>"I am ready to read."</b> Watch the bar move.'}</p>
+    <div class="meter"><i id="lvl"></i></div>
+    ${hasSR ? '<div class="heard" id="heard" aria-live="polite"><span class="muted">What the iPad hears shows up here…</span></div>' : ""}
+    <p class="status" id="st"></p>
+    <div class="row">
+      <button class="btn" id="chk" type="button">Start mic check</button>
+      <button class="btn gold" id="next" type="button" hidden>Next</button>
+    </div>
+    <button class="teacher" id="skip" type="button" hidden>The iPad can't hear me. Use Tap Mode instead.</button>
+  </section>`);
+  let tries = 0;
+  $("#chk").onclick = async () => {
+    stopVoice();
+    const st = $("#st");
+    try { await getMic(); } catch (e) {
+      st.className = "status bad";
+      st.innerHTML = "The microphone is blocked. Ask a classmate to help you: open iPad <b>Settings → Chrome → Microphone</b> and turn it on. Then reload this page.";
+      return;
+    }
+    runMeter($("#lvl"));
+    tries++;
+    if (!hasSR) {
+      st.className = "status"; st.textContent = "Talk now. Does the bar move when you talk?";
+      $("#next").hidden = false; $("#next").textContent = "Yes, the bar moved";
+      S.mode = "tap"; save();
+      return;
+    }
+    const heardEl = $("#heard");
+    heardEl.textContent = "Listening…";
+    st.className = "status"; st.textContent = 'Say: "I am ready to read."';
+    let got = "", done = false;
+    try {
+      const r = new SR(); r.lang = "en-US"; r.interimResults = true; r.continuous = false;
+      r.onresult = ev => { got = Array.from(ev.results).map(x => x[0].transcript).join(" "); heardEl.textContent = got; };
+      r.onerror = () => {};
+      r.onend = () => {
+        if (!$("#next") || done) return; done = true;
+        const words = Fluency.tokens(got);
+        if (words.length >= 2) {
+          st.className = "status good"; st.textContent = "Great! The iPad can hear you.";
+          S.micOk = true; S.mode = "auto"; save();
+          $("#next").hidden = false; $("#next").textContent = "Next";
+        } else {
+          st.className = "status bad"; st.textContent = "I didn't hear you. Move somewhere quieter, speak a little louder, and try again.";
+          $("#chk").textContent = "Try again";
+          if (tries >= 2) $("#skip").hidden = false;
+        }
+      };
+      r.start();
+      setTimeout(() => { try { r.stop(); } catch (e) {} }, 7000);
+    } catch (e) { $("#skip").hidden = false; }
+  };
+  $("#next").onclick = () => go("ready");
+  $("#skip").onclick = () => { S.mode = "tap"; save(); go("ready"); };
+}
+
+function ready() {
+  shell(`<section class="card">
+    <h2>Step 2: Read out loud for 1 minute</h2>
+    ${listenBtn("ready")}
+    <div class="tips">
+      <div class="tip"><b>🗣️</b><span>Read in your normal voice, like you're reading to a friend.</span></div>
+      <div class="tip"><b>🐢</b><span>Don't race. Read smoothly, not super fast.</span></div>
+      <div class="tip"><b>🔑</b><span>Stuck on a word? Try your best and keep going.</span></div>
+      <div class="tip"><b>⏱️</b><span>Keep reading until the timer ends. It stops by itself.</span></div>
+    </div>
+    ${S.mode === "tap" ? '<p class="muted">When the timer ends, you will tap the last word you read.</p>' : ""}
+    <button class="btn gold big" id="startRead" type="button">Start reading</button>
+  </section>${passageHTML("hidden-text")}`, true);
+  $("#startRead").onclick = startReading;
+}
+
+/* ---------- the timed read ---------- */
+let rec = null, recChunks = [], recMime = "", recog = null;
+async function startReading() {
+  stopVoice();
+  try { await getMic(); } catch (e) { alertCard("The microphone is blocked. Turn it on in iPad Settings → Chrome → Microphone, then reload."); return; }
+  // 3-2-1
+  const card = $(".card"); card.innerHTML = `<div class="count" id="cd">3</div><p class="muted" style="text-align:center">Get ready to read out loud…</p>`;
+  for (const n of [2, 1]) { await wait(1000); $("#cd").textContent = n; }
+  await wait(1000);
+  S.stage = "reading"; S.heard = ""; S.startedAt = new Date().toISOString(); save();
+  S.stage = "reading"; // render() would treat a reload as a restart
+  app.className = "wrap wide";
+  app.innerHTML = `<div class="timerbar"><span class="recdot" title="Recording"></span><div class="track"><i id="tbar"></i></div><span class="secs" id="secs">60</span></div>${passageHTML()}`;
+  const spans = Array.from(document.querySelectorAll(".w"));
+  spans[0] && spans[0].classList.add("next");
+
+  // recording
+  recChunks = [];
+  try {
+    recMime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", ""].find(m => !m || (window.MediaRecorder && MediaRecorder.isTypeSupported(m)));
+    rec = new MediaRecorder(stream, recMime ? { mimeType: recMime } : undefined);
+    rec.ondataavailable = e => e.data && e.data.size && recChunks.push(e.data);
+    rec.start(1000);
+  } catch (e) { rec = null; }
+  const recT0 = performance.now(); S.times = [];
+
+  // listening
+  let finals = "", interim = "", live = S.mode === "auto" && !!SR, lastPos = 0;
+  const update = () => {
+    S.heard = (finals + " " + interim).trim();
+    const a = Fluency.align(PWORDS, Fluency.tokens(S.heard));
+    const tNow = Math.round((performance.now() - recT0) / 100); // tenths of a second into the recording
+    for (let i = 0; i < a.pos; i++) if (S.times[i] == null) S.times[i] = tNow;
+    if (a.pos !== lastPos) {
+      spans.forEach((s, i) => { s.classList.toggle("ok", i < a.pos && /ok|check|sc/.test(a.status[i] || "")); s.classList.remove("next"); });
+      spans[a.pos] && spans[a.pos].classList.add("next");
+      lastPos = a.pos;
+    }
+  };
+  const startRecog = () => {
+    if (!live) return;
+    try {
+      recog = new SR(); recog.lang = "en-US"; recog.continuous = true; recog.interimResults = true; recog.maxAlternatives = 1;
+      recog.onresult = ev => {
+        interim = "";
+        for (let k = ev.resultIndex; k < ev.results.length; k++) {
+          const t = ev.results[k][0].transcript;
+          if (ev.results[k].isFinal) finals += " " + t; else interim += " " + t;
+        }
+        update();
+      };
+      recog.onerror = ev => { if (ev.error === "not-allowed" || ev.error === "service-not-allowed" || ev.error === "audio-capture") live = false; };
+      recog.onend = () => { if (finals || interim) { finals += " " + interim; interim = ""; } if (timing && live) startRecog(); };
+      recog.start();
+    } catch (e) { live = false; }
+  };
+  let timing = true;
+  startRecog();
+
+  const T = 60000, t0 = performance.now();
+  await new Promise(done => {
+    const tick = () => {
+      const left = Math.max(0, T - (performance.now() - t0));
+      $("#secs").textContent = Math.ceil(left / 1000);
+      $("#tbar").style.transform = `scaleX(${left / T})`;
+      if (left <= 0) return done();
+      setTimeout(tick, 200);
+    };
+    tick();
+  });
+  timing = false;
+  // let the last words settle
+  if (recog && live) { await new Promise(r => { const old = recog.onend; recog.onend = () => { old && old(); r(); }; try { recog.stop(); } catch (e) { r(); } setTimeout(r, 2500); }); }
+  update();
+  if (rec && rec.state !== "inactive") { await new Promise(r => { rec.onstop = r; rec.stop(); setTimeout(r, 1500); }); }
+  if (recChunks.length) {
+    const blob = new Blob(recChunks, { type: (rec && rec.mimeType) || recMime || "audio/mp4" });
+    await idb.put("rec." + formLetter, blob);
+  }
+
+  const a = Fluency.align(PWORDS, Fluency.tokens(S.heard));
+  if (S.mode === "auto" && a.correct >= 15) {
+    finishResult(a, "auto");
+    go("silent");
+  } else {
+    if (S.mode === "auto") S.micTrouble = true;
+    S.stage = "tap"; save(); render();
+  }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function alertCard(msg) { const c = $(".card"); if (c) c.insertAdjacentHTML("beforeend", `<p class="status bad">${esc(msg)}</p>`); }
+
+function finishResult(a, mode) {
+  const missed = [], marks = [], CODE = { sub: "s", miss: "o", sc: "c", check: "k" };
+  let subs = 0, oms = 0, scs = 0, checks = 0;
+  for (let i = 0; i < a.pos; i++) {
+    const st = a.status[i];
+    if (st === "miss") { oms++; missed.push(PWORDS[i] + " (left out)"); }
+    if (st === "sub") { subs++; missed.push(`${PWORDS[i]} (said "${a.said[i]}")`); }
+    if (st === "sc") scs++;
+    if (st === "check") checks++;
+    if (CODE[st]) marks.push(a.said && a.said[i] ? [i, CODE[st], a.said[i]] : [i, CODE[st]]);
+  }
+  const ins = (a.ins || []);
+  const errs = subs + oms + ins.length;
+  const wcpm = mode === "auto" ? a.correct : a.attempted;
+  const acc = mode === "auto" && a.attempted ? Math.max(0, Math.round((a.attempted - errs) / a.attempted * 1000) / 10) : null;
+  const rr = { v: 1, nm: S.name, pd: S.period, dt: new Date().toISOString(), f: formLetter, n: a.attempted, w: wcpm, md: mode, ss: normSeason,
+    e: marks, x: ins.map(o => [o.after, o.word]), t: (S.times || []).slice(0, a.attempted).map(x => (x == null ? "" : x.toString(36))).join(",") };
+  S.result = {
+    mode, wcpm, attempted: a.attempted, errors: mode === "auto" ? errs : null,
+    subs, oms, ins: ins.length, scs, checks,
+    accuracy: acc, rrLevel: acc != null ? Fluency.rrLevel(acc) : null, scRate: mode === "auto" ? Fluency.scRate(errs, scs) : null,
+    missed: missed.slice(0, 25), level: Fluency.level(wcpm, normSeason),
+    rr: btoa(unescape(encodeURIComponent(JSON.stringify(rr)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+  };
+  S.finishedAt = new Date().toISOString();
+  save();
+}
+
+/* tap mode: student marks the last word they read */
+function tapScreen() {
+  shell(`<section class="card"><h2>Time's up!</h2>
+    ${listenBtn("tap")}
+    <p><b>Tap the last word you read out loud.</b> Then tap <b>That's my last word</b>.</p>
+    <button class="btn gold" id="conf" type="button" disabled>That's my last word</button></section>
+    ${passageHTML("tapmode")}`, true);
+  const spans = Array.from(document.querySelectorAll(".w"));
+  let pick = S.tapIndex;
+  const mark = () => spans.forEach((s, i) => { s.classList.toggle("last", i === pick); s.classList.toggle("ok", i < pick); });
+  mark(); $("#conf").disabled = pick < 0;
+  $("#passage").addEventListener("click", e => {
+    const w = e.target.closest(".w"); if (!w) return;
+    pick = +w.dataset.i; S.tapIndex = pick; save(); mark(); $("#conf").disabled = false;
+  });
+  $("#conf").onclick = () => {
+    const a = { pos: pick + 1, attempted: pick + 1, correct: pick + 1, status: [], said: {}, ins: [] };
+    finishResult(a, "tap");
+    go("silent");
+  };
+}
+
+function silent() {
+  shell(`<section class="card"><h2>Step 3: Finish the story in your head</h2>
+    ${listenBtn("silent")}
+    <p>Great reading! Now read the rest of the story <b>silently</b> to yourself. Then tap <b>I'm done reading</b>. The story will go away when the questions start.</p>
+  </section>${passageHTML()}
+  <button class="btn gold big" id="doneRead" type="button">I'm done reading</button>`, true);
+  $("#doneRead").onclick = () => { S.q = 0; go("questions"); };
+}
+
+function questions() {
+  const qs = P.questions, k = S.q, q = qs[k];
+  const sel = S.answers[k];
+  shell(`<section class="card">
+    <span class="qnum">Question ${k + 1} of ${qs.length}</span>
+    <h2>${esc(q.q)}</h2>
+    ${listenBtn(`q${formLetter}${k + 1}`, "Read it to me")}
+    <div class="opts">${q.o.map((o, i) => `<button class="opt ${sel === i ? "sel" : ""}" data-o="${i}" type="button"><span class="let">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}</div>
+    <button class="btn gold" id="nextQ" type="button" ${sel == null ? "disabled" : ""}>${k === qs.length - 1 ? "Finish" : "Next question"}</button>
+  </section>`);
+  app.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    S.answers[k] = +b.dataset.o; save();
+    app.querySelectorAll(".opt").forEach(x => x.classList.toggle("sel", x === b));
+    $("#nextQ").disabled = false;
+  });
+  $("#nextQ").onclick = () => {
+    if (k < qs.length - 1) { S.q = k + 1; save(); questions(); window.scrollTo(0, 0); stopVoice(); }
+    else go("results");
+  };
+}
+
+/* ---------- results + sending ---------- */
+function compScore() { return P.questions.reduce((n, q, i) => n + (S.answers[i] === q.a ? 1 : 0), 0); }
+function payload() {
+  const r = S.result || {}, comp = compScore();
+  const missedQ = P.questions.map((q, i) => S.answers[i] === q.a ? null : "Q" + (i + 1)).filter(Boolean);
+  const level = (r.mode === "tap" ? "CHECK RECORDING - " : "") + r.level;
+  const details = [
+    `Mode: ${r.mode === "auto" ? "Auto-scored" : "Tap mode (student marked last word; errors not counted)"}`,
+    S.micTrouble ? "Mic trouble during reading" : null,
+    `Words attempted: ${r.attempted}`,
+    r.errors != null ? `Errors: ${r.errors} (substitutions ${r.subs}, omissions ${r.oms}, insertions ${r.ins})` : null,
+    r.scs != null && r.mode === "auto" ? `Self-corrections: ${r.scs} | SC rate: ${r.scRate}` : null,
+    r.checks ? `Words to double-check: ${r.checks}` : null,
+    r.missed && r.missed.length ? `Errors: ${r.missed.join(", ")}` : null,
+    `Comprehension missed: ${missedQ.join(", ") || "none"}`,
+    `Norms used: Grade 6 ${normSeason}`,
+    `Restarts: ${S.restarts}`,
+    `Finished: ${new Date(S.finishedAt || Date.now()).toLocaleString()}`,
+    S.heard ? `iPad heard: ${S.heard.slice(0, 600)}` : null
+  ].filter(Boolean).join(" | ");
+  return {
+    NAME: S.name, PERIOD: S.period, PASSAGE: `${formLetter} - ${P.title}`, WCPM: String(r.wcpm),
+    ACCURACY: r.accuracy != null ? `${r.accuracy}% ${r.rrLevel}` : "n/a (tap mode)", COMPREHENSION: `${comp}/${P.questions.length}`,
+    LEVEL: level, DETAILS: details, RECORD: reviewLink()
+  };
+}
+function reviewLink() {
+  const base = location.origin + location.pathname.replace(/[^/]*$/, "");
+  return S.result && S.result.rr ? base + "review.html#" + S.result.rr : "";
+}
+async function send() {
+  if (!CFG.f || !CFG.e) return "nocfg";
+  const data = payload(), body = new URLSearchParams();
+  if (!CFG.e.RECORD) data.DETAILS += " | Running record: " + data.RECORD;
+  for (const [k, entry] of Object.entries(CFG.e)) if (data[k] != null) body.append(entry, data[k]);
+  try {
+    await fetch(`https://docs.google.com/forms/d/e/${CFG.f}/formResponse`, { method: "POST", mode: "no-cors", body });
+    S.sent = true; save(); return "ok";
+  } catch (e) { return "fail"; }
+}
+
+async function results() {
+  const r = S.result || {}, comp = compScore();
+  shell(`<section class="card">
+    <h1>You did it! 🎉</h1>
+    ${listenBtn("results")}
+    <div class="stats">
+      <div class="stat"><div class="n">${r.wcpm ?? "–"}</div><div class="l">${r.mode === "tap" ? "words read in 1 minute" : "words correct per minute"}</div></div>
+      ${r.accuracy != null ? `<div class="stat"><div class="n">${r.accuracy}%</div><div class="l">accuracy</div></div>` : ""}
+      <div class="stat"><div class="n">${comp}/${P.questions.length}</div><div class="l">questions correct</div></div>
+    </div>
+    <div class="sent wait" id="sent">Sending your results to your teacher…</div>
+  </section>
+  <section class="card">
+    <h2>Last step: turn in your recording</h2>
+    <div id="recArea"><p class="muted">Loading your recording…</p></div>
+    <ol class="howto">
+      <li>Tap <b>Save my recording</b>.</li>
+      <li>Choose <b>Save to Files</b> and tap <b>Save</b>.</li>
+      <li>Open <b>Canvas</b> and go to the <b>Fluency Check</b> assignment.</li>
+      <li>Tap <b>Upload</b>, pick your recording from Files, and submit.</li>
+    </ol>
+  </section>
+  <button class="teacher" id="tReset" type="button">Teacher: reset this iPad</button>`);
+  celebrate();
+
+  // results to Google Form
+  const box = $("#sent");
+  const show = st => {
+    if (st === "ok") { box.className = "sent ok"; box.textContent = "✓ Your results were sent to your teacher."; }
+    else if (st === "nocfg") { box.className = "sent bad"; box.textContent = "Practice link: results were not sent. (Teacher: use the student link from the setup page.)"; }
+    else { box.className = "sent bad"; box.innerHTML = `Couldn't send yet. Check the Wi-Fi, then <button class="btn ghost" id="retry" type="button">Try again</button>`; $("#retry").onclick = async () => show(await send()); }
+  };
+  show(S.sent ? "ok" : await send());
+
+  // recording
+  const blob = await idb.get("rec." + formLetter);
+  const area = $("#recArea");
+  if (!blob) { area.innerHTML = `<p class="muted">No recording was saved on this iPad. Your scores were still sent.</p>`; }
+  else {
+    const url = URL.createObjectURL(blob);
+    const ext = /mp4|m4a|aac/.test(blob.type) ? "m4a" : "webm";
+    const fname = `${S.name.replace(/[^a-z0-9]+/gi, "_")}_Period${S.period}_Fluency_${formLetter}.${ext}`;
+    area.innerHTML = `<audio controls src="${url}"></audio>
+      <div class="row"><button class="btn gold" id="saveRec" type="button">Save my recording</button>
+      <a class="btn ghost" id="dl" href="${url}" download="${fname}" hidden>Download instead</a></div>`;
+    $("#saveRec").onclick = async () => {
+      const file = new File([blob], fname, { type: blob.type || "audio/mp4" });
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: fname }); return; }
+      } catch (e) { if (e && e.name === "AbortError") return; }
+      $("#dl").hidden = false; $("#dl").click();
+    };
+  }
+
+  $("#tReset").onclick = () => {
+    const c = $(".card:last-of-type");
+    if ($("#resetBox")) return;
+    $("#tReset").insertAdjacentHTML("afterend", `<div class="card" id="resetBox"><label for="rc">Teacher reset code</label>
+      <input type="text" id="rc" autocomplete="off"><div class="row"><button class="btn" id="doReset" type="button">Erase and start over</button></div><p class="status bad" id="rmsg"></p></div>`);
+    $("#doReset").onclick = async () => {
+      if ($("#rc").value.trim().toUpperCase() !== String(CFG.k || DEFAULT_RESET).toUpperCase()) { $("#rmsg").textContent = "That code isn't right."; return; }
+      try { localStorage.removeItem(KEY + "." + formLetter); } catch (e) {}
+      await idb.clear(); S = blank(); render();
+    };
+  };
+}
+window.addEventListener("online", () => { if (S.stage === "results" && !S.sent) send().then(st => { if (st === "ok") { const b = $("#sent"); if (b) { b.className = "sent ok"; b.textContent = "✓ Your results were sent to your teacher."; } } }); });
+
+/* ---------- confetti ---------- */
+function celebrate() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv = $("#confetti"), cx = cv.getContext("2d");
+  const W = cv.width = innerWidth * devicePixelRatio, H = cv.height = innerHeight * devicePixelRatio;
+  cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
+  const cols = ["#d6a21e", "#1d2b5c", "#e8505b", "#2bb673", "#3d8bfd", "#f28c28", "#9b59d0"];
+  const bits = Array.from({ length: 180 }, () => ({ x: Math.random() * W, y: -Math.random() * H * .6, r: (6 + Math.random() * 8) * devicePixelRatio,
+    vy: (2 + Math.random() * 4) * devicePixelRatio, vx: (Math.random() - .5) * 3 * devicePixelRatio, a: Math.random() * 6, va: (Math.random() - .5) * .3, c: cols[Math.random() * cols.length | 0] }));
+  const t0 = performance.now();
+  (function f(t) {
+    cx.clearRect(0, 0, W, H);
+    bits.forEach(b => { b.x += b.vx; b.y += b.vy; b.a += b.va; cx.save(); cx.translate(b.x, b.y); cx.rotate(b.a); cx.fillStyle = b.c; cx.fillRect(-b.r / 2, -b.r / 4, b.r, b.r / 2); cx.restore(); });
+    if (t - t0 < 4500) requestAnimationFrame(f); else cx.clearRect(0, 0, W, H);
+  })(t0);
+}
+
+/* =============== TEACHER SETUP (?setup) =============== */
+function setup() {
+  app.className = "wrap";
+  app.innerHTML = `<header class="brand"><img src="logo.png" alt="The Literacy Locksmith" onerror="this.parentNode.hidden=true"></header>
+  <section class="card"><h1>Teacher setup</h1>
+    <p>This makes the link your students open. Their scores go to your Google Form; their recordings go to Canvas.</p>
+    <ol class="howto">
+      <li>Make a Google Form with 9 <b>Short answer</b> questions: Name, Period, Passage, WCPM, Accuracy, Comprehension, Level, Details, Running Record.</li>
+      <li>In Settings → Responses, turn <b>off</b> "Restrict to users in McKeel Schools" and "Collect email addresses".</li>
+      <li>Click <b>⋮ → Get pre-filled link</b>. Type these exact words in the boxes: <code>NAME</code> <code>PERIOD</code> <code>PASSAGE</code> <code>WCPM</code> <code>ACCURACY</code> <code>COMPREHENSION</code> <code>LEVEL</code> <code>DETAILS</code> <code>RECORD</code>. Click <b>Get link → Copy link</b>.</li>
+      <li>Paste it below.</li>
+    </ol>
+    <div class="field"><label for="pf">Pre-filled form link</label><textarea id="pf" placeholder="https://docs.google.com/forms/d/e/.../viewform?usp=pp_url&entry.123=NAME..."></textarea></div>
+    <div class="field"><label for="ps">Passage</label><select id="ps">
+      <option value="auto">Match the season automatically (Fall A, Winter B, Spring C)</option>
+      <option value="A">A: ${esc(PASSAGES.A.title)}</option><option value="B">B: ${esc(PASSAGES.B.title)}</option><option value="C">C: ${esc(PASSAGES.C.title)}</option></select></div>
+    <div class="field"><label for="rk">Reset code (lets you clear a student's iPad)</label><input type="text" id="rk" value="${DEFAULT_RESET}"></div>
+    <button class="btn gold" id="mk" type="button">Make student link</button>
+    <p class="status" id="msg"></p>
+    <div id="out" hidden class="field"><label for="link">Student link: post this in Canvas</label><textarea id="link" readonly></textarea>
+      <div class="row"><button class="btn" id="cp" type="button">Copy link</button><a class="btn ghost" id="try" target="_blank" rel="noopener">Try it</a></div></div>
+  </section>`;
+  $("#mk").onclick = () => {
+    const raw = $("#pf").value.trim(), msg = $("#msg");
+    const m = raw.match(/forms\/d\/e\/([A-Za-z0-9_-]+)/);
+    if (!m) { msg.className = "status bad"; msg.textContent = "That doesn't look like a pre-filled Google Form link. It should contain /forms/d/e/."; return; }
+    const e = {}; const need = ["NAME", "PERIOD", "PASSAGE", "WCPM", "ACCURACY", "COMPREHENSION", "LEVEL", "DETAILS"];
+    const want = need.concat("RECORD");
+    try { new URL(raw).searchParams.forEach((v, k) => { if (/^entry\.\d+$/.test(k) && want.includes(v.trim().toUpperCase())) e[v.trim().toUpperCase()] = k; }); } catch (x) {}
+    const missing = need.filter(n => !e[n]);
+    if (missing.length) { msg.className = "status bad"; msg.textContent = "Missing boxes: " + missing.join(", ") + ". Re-make the pre-filled link with those words typed exactly."; return; }
+    const cfg = { f: m[1], e, p: $("#ps").value, k: $("#rk").value.trim() || DEFAULT_RESET };
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const link = location.origin + location.pathname + "?c=" + code;
+    $("#link").value = link; $("#try").href = link; $("#out").hidden = false;
+    msg.className = "status good"; msg.textContent = e.RECORD ? "All 9 boxes found. Your link is ready." : "Link ready. (No RECORD box found, so the running record link will go in the Details column.)";
+  };
+  $("#cp") && ($("#cp").onclick = async () => { try { await navigator.clipboard.writeText($("#link").value); $("#cp").textContent = "Copied!"; } catch (e) { $("#link").select(); } });
+}
+
+if (params.has("setup")) setup(); else render();
+})();
+</script>
+</body>
+</html>
